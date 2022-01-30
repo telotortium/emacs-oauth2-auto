@@ -1,0 +1,23 @@
+#+TITLE: OAuth2-auto
+
+Example script for fetching the OAuth2 token.
+#+begin_src elisp
+;;; ~/doom.d/email/fetch-oauth-token.el -*- lexical-binding: t; -*-
+
+(let ((username (nth 3 command-line-args))
+      (provider (nth 4 command-line-args))
+      (straight-repo-dir
+       (file-truename (concat user-emacs-directory ".local/straight/repos/"))))
+
+  (unless (and username provider)
+    (princ "Could not find username or provider.\n")
+    (princ "emacs --script fetch-oauth-token.el USERNAME PROVIDER\n")
+    (kill-emacs 1))
+
+
+  (require 'plstore)
+  (setq plstore-encrypt-to "my-email@example.com")
+  (require 'oauth2-auto "~/.doom.d/email/oauth2-auto.el")
+  (princ (oauth2-auto/access-token-sync username (intern provider)))
+  (princ "\n"))
+#+end_src
