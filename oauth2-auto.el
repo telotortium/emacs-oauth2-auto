@@ -106,7 +106,6 @@
 
 (defun oauth2-auto//make-plist (response plist)
   "Main data structure of the module. Stored in the plstore"
-  (message "Response: %s, plist: %s" (pp-to-string response) (pp-to-string plist))
   (let ((refresh-token (or (cdr (assoc 'refresh_token response))
                            (plist-get plist :refresh-token))))
     (unless refresh-token
@@ -428,11 +427,11 @@ in PLIST. Returns the refreshed plist."
 
     ; Refresh an oauth2-token
     (oauth2-auto//make-plist
-     (oauth2-auto//request
-      provider 'token_url
-      '(client_id tenant client_secret)
-      `((refresh_token . ,refresh-token)
-        (grant_type . "refresh_token")))
+     (aio-await (oauth2-auto//request
+                 provider 'token_url
+                 '(client_id tenant client_secret)
+                 `((refresh_token . ,refresh-token)
+                   (grant_type . "refresh_token"))))
      plist)))
 
 (provide 'oauth2-auto)
