@@ -33,6 +33,7 @@
 ;; `oauth2-auto-access-token'.
 
 ;;; Code:
+(require 'plstore)
 (require 'aio)     ; promises
 (eval-when-compile (require 'dash))    ; `--map'
 (require 'alert)   ; `alert' to give the user a heads up to go to their browser and log in
@@ -137,6 +138,7 @@
   :group 'oauth2-auto
   :type 'file)
 
+; TODO remove cache or invalidate it properly when other programs write to disk
 (defvar oauth2-auto--plstore-cache
   (make-hash-table :test 'equal)
   "Cache the values written to and read from the plstore")
@@ -149,19 +151,26 @@
   "Save the data for USERNAME and PROVIDER to the plstore and cache."
   (let ((id (oauth2-auto--compute-id username provider))
         (plstore (plstore-open oauth2-auto-plstore)))
-    (plstore-put plstore id nil plist)
-    (plstore-save plstore)
-    (puthash id plist oauth2-auto--plstore-cache))
-  plist)
+    (unwind-protect
+        (prog1 plist
+          (plstore-put plstore id nil plist)
+          (plstore-save plstore)
+          (puthash id plist oauth2-auto--plstore-cache))
+      (plstore-close plstore))))
 
 (defun oauth2-auto--plstore-read (username provider)
   "Read the data for USERNAME and PROVIDER from the cache, else
 from the plstore. Cache data if a miss occurs."
   (let ((id (oauth2-auto--compute-id username provider)))
-    (or (gethash id oauth2-auto--plstore-cache)
-        (puthash id
-                 (cdr (plstore-get (plstore-open oauth2-auto-plstore) id))
-                 oauth2-auto--plstore-cache))))
+    ; Assume cache is invalidated. FIXME
+    (or nil ;(gethash id oauth2-auto--plstore-cache)
+        (let ((plstore (plstore-open oauth2-auto-plstore)))
+          (unwind-protect
+              (puthash id
+                       (cdr (plstore-get plstore id))
+                       oauth2-auto--plstore-cache)
+            (plstore-close plstore))))))
+
 
 
 ;; Main entry point
@@ -237,23 +246,24 @@ licensed under GPLv3+. See https://github.com/emacsmirror/oauth2."
          (url (cdr (assoc url-key provider-info)))
          (data-alist (oauth2-auto--craft-request-alist
                       provider-info data-keys extra-alist))
-         (data (oauth2-auto--urlify-request data-alist))
-
-         ; Parameters for `url-retrieve' inside `aio-url-retrieve'
-         (url-registered-auth-schemes nil)
-         (url-request-method "POST")
-         (url-request-data data)
-         (url-request-extra-headers
+         (data (oauth2-auto--urlify-request data-alist)))
+    ; Parameters for `url-retrieve' inside `aio-url-retrieve'
+    ; Cannot use `let' because they are dynamically bound variables
+    (setq url-registered-auth-schemes nil
+          url-request-method "POST"
+          url-request-data data
+          url-request-extra-headers
           '(("Content-Type" . "application/x-www-form-urlencoded")))
-         (response-raw (aio-await (aio-url-retrieve url)))
-         (response (with-current-buffer (cdr response-raw)
-                     (prog1 (oauth2-auto--request-access-parse)
-                       (kill-buffer (current-buffer))))))
-    (cond
-     ((assoc 'error response)
-      (error "OAuth error. Request: %s. Response: %s"
-             (pp-to-string data-alist) (pp-to-string response)))
-     (t response))))
+    ; TODO: using `aio-url-retrieve' sometimes results in a hung connection
+    (let* ((response-buffer (aio-await (url-retrieve-synchronously url)))
+           (response (with-current-buffer response-buffer
+                       (prog1 (oauth2-auto--request-access-parse)
+                         (kill-buffer (current-buffer))))))
+      (cond
+       ((assoc 'error response)
+        (error "OAuth error. Request: %s. Response: %s"
+               (pp-to-string data-alist) (pp-to-string response)))
+       (t response)))))
 
 
 ;; Barebones HTTP server to receive the tokens
