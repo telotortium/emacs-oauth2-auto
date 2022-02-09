@@ -175,7 +175,6 @@ from the plstore. Cache data if a miss occurs."
 
 ;; Main entry point
 
-;;;###autoload
 (aio-defun oauth2-auto-plist (username provider)
   "Returns a 'oauth2-token structure for USERNAME and PROVIDER."
   ; Check the plstore for the requested username and provider
@@ -195,7 +194,6 @@ from the plstore. Cache data if a miss occurs."
 (defun oauth2-auto-plist-sync (username provider)
   (aio-wait-for (oauth2-auto-plist username provider)))
 
-;;;###autoload
 (aio-defun oauth2-auto-access-token (username provider)
   "Returns the access-token string used to authenticate user
 USERNAME to PROVIDER."
