@@ -190,9 +190,24 @@ from the plstore. Cache data if a miss occurs."
        (aio-await
         (oauth2-auto-refresh-or-authenticate username provider plist))))))
 
+(aio-defun oauth2-auto-force-reauth (username provider)
+  "Authenticates USERNAME with PROVIDER again and saves to the plstore."
+  (oauth2-auto--plstore-write
+   username provider
+   (aio-await
+    (oauth2-auto-authenticate username provider))))
+
+
+(defun oauth2-auto-poll-promise (promise)
+  "Synchronously wait for PROMISE, polling every SECONDS seconds."
+  (setq seconds 3)
+  (while (null (aio-result promise))
+    (sleep-for seconds))
+  (funcall (aio-result promise)))
+
 ;;;###autoload
 (defun oauth2-auto-plist-sync (username provider)
-  (aio-wait-for (oauth2-auto-plist username provider)))
+  (oauth2-auto-poll-promise (oauth2-auto-plist username provider)))
 
 (aio-defun oauth2-auto-access-token (username provider)
   "Returns the access-token string used to authenticate user
@@ -202,7 +217,7 @@ USERNAME to PROVIDER."
 
 ;;;###autoload
 (defun oauth2-auto-access-token-sync (username provider)
-  (aio-wait-for (oauth2-auto-access-token username provider)))
+  (oauth2-auto-poll-promise (oauth2-auto-access-token username provider)))
 
 
 ;; Making and encoding requests
