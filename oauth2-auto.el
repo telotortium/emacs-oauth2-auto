@@ -5,7 +5,7 @@
 ;; Author: Adrià Garriga-Alonso <adria.garriga@gmail.com>
 ;; Version: 0.1
 ;; Keywords: comm oauth2
-;; Package-Requires: ((emacs "27.1") (aio "1.0") (dash "2.19"))
+;; Package-Requires: ((emacs "26.1") (aio "1.0") (dash "2.19"))
 
 ;; This file is part of GNU Emacs.
 
