@@ -5,7 +5,7 @@
 ;; Author: Adrià Garriga-Alonso <adria.garriga@gmail.com>
 ;; Version: 0.1
 ;; Keywords: comm oauth2
-;; Package-Requires: ((emacs "27.1") (aio "1.0") (dash "2.19"))
+;; Package-Requires: ((emacs "26.1") (aio "1.0") (dash "2.19"))
 
 ;; This file is part of GNU Emacs.
 
@@ -175,7 +175,6 @@ from the plstore. Cache data if a miss occurs."
 
 ;; Main entry point
 
-;;;###autoload
 (aio-defun oauth2-auto-plist (username provider)
   "Returns a 'oauth2-token structure for USERNAME and PROVIDER."
   ; Check the plstore for the requested username and provider
@@ -191,11 +190,25 @@ from the plstore. Cache data if a miss occurs."
        (aio-await
         (oauth2-auto-refresh-or-authenticate username provider plist))))))
 
-;;;###autoload
-(defun oauth2-auto-plist-sync (username provider)
-  (aio-wait-for (oauth2-auto-plist username provider)))
+(aio-defun oauth2-auto-force-reauth (username provider)
+  "Authenticates USERNAME with PROVIDER again and saves to the plstore."
+  (oauth2-auto--plstore-write
+   username provider
+   (aio-await
+    (oauth2-auto-authenticate username provider))))
+
+
+(defun oauth2-auto-poll-promise (promise)
+  "Synchronously wait for PROMISE, polling every SECONDS seconds."
+  (setq seconds 3)
+  (while (null (aio-result promise))
+    (sleep-for seconds))
+  (funcall (aio-result promise)))
 
 ;;;###autoload
+(defun oauth2-auto-plist-sync (username provider)
+  (oauth2-auto-poll-promise (oauth2-auto-plist username provider)))
+
 (aio-defun oauth2-auto-access-token (username provider)
   "Returns the access-token string used to authenticate user
 USERNAME to PROVIDER."
@@ -204,7 +217,7 @@ USERNAME to PROVIDER."
 
 ;;;###autoload
 (defun oauth2-auto-access-token-sync (username provider)
-  (aio-wait-for (oauth2-auto-access-token username provider)))
+  (oauth2-auto-poll-promise (oauth2-auto-access-token username provider)))
 
 
 ;; Making and encoding requests
