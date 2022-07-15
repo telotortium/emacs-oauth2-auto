@@ -5,7 +5,7 @@
 ;; Author: Adrià Garriga-Alonso <adria.garriga@gmail.com>
 ;; Version: 0.1
 ;; Keywords: comm oauth2
-;; Package-Requires: ((emacs "27.1") (aio "1.0") (dash "2.19"))
+;; Package-Requires: ((emacs "26.1") (aio "1.0") (dash "2.19"))
 
 ;; This file is part of GNU Emacs.
 
@@ -122,7 +122,7 @@
 
 (defun oauth2-auto--now ()
   "Current epoch in seconds"
-  (time-convert nil 'integer))
+  (seconds-to-time nil 'integer))
 
 (defun oauth2-auto--plist-needs-refreshing (plist)
   "Does the authentication-token in plist need refreshing?"
@@ -377,7 +377,8 @@ Then listen to the redirect response and return it."
       (delete-process server-proc))))
 
 (defconst oauth2-auto--url-unreserved
-  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY0123456789-._~")
+  "List of valid non-padding characters in Base64 URL encoded string."
+  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY0123456789-_")
 
 (defun oauth2-auto--random-string (len)
   "Return a random string of length `len'. Uses only characters
@@ -389,6 +390,26 @@ valid in `base64url-encode-string'"
       (insert (elt oauth2-auto--url-unreserved (random rand-len))))
     (buffer-string))))
 
+(defun oauth2-auto--base64url-encode-string (string &optional no-pad)
+  "Package-local version of ‘base64url-encode-string’.
+
+Base64url-encode STRING and return the result.
+
+Optional second argument NO-PAD means do not add padding char =.
+
+This produces the URL variant of base 64 encoding defined in RFC 4648.
+
+Exists because this package is compatible with Emacs 26.1, but
+‘base64url-encode-string’ was only added in Emacs 27.1."
+  (if (fboundp 'base64url-encode-string)
+      ;; Use funcall to silence flycheck.
+      (funcall 'base64url-encode-string string no-pad)
+    (let* ((enc (base64-encode-string string t))
+           (enc (replace-regexp-in-string "+" "-" enc))
+           (enc (replace-regexp-in-string "/" "_" enc)))
+      (if no-pad
+          (replace-regexp-in-string "=" "" enc)
+        enc))))
 
 ;; Control flow to authenticate client to the OAuth2 providers
 
@@ -417,7 +438,7 @@ valid in `base64url-encode-string'"
                        (response_mode . "query") ;; microsoft-only
                        (access_type . "offline") ;; google-only
                        (state . ,state)
-                       (code_challenge . ,(base64url-encode-string binary-code-challenge t))
+                       (code_challenge . ,(oauth2-auto--base64url-encode-string binary-code-challenge t))
                        (code_challenge_method . "S256")))))
          (response-state (cdr (assoc 'state response)))
          (redirect-uri (cdr (assoc 'redirect_uri response)))
