@@ -159,13 +159,9 @@ from PLIST if non-nil.  The return value is intended to be stored in plstore."
         (plstore (plstore-open oauth2-auto-plstore)))
     (unwind-protect
         (prog1 plist
-          ;; Seems like we occasionally end up with a killed buffer.
-          (unless (buffer-live-p (plstore--get-buffer plstore))
-            (debug)
-            (setq plstore (plstore-open oauth2-auto-plstore)))
           (plstore-put plstore id nil plist)
+          ;; Seems like we occasionally end up with a killed buffer in PLSTORE - reinitialize it in that case.
           (unless (buffer-live-p (plstore--get-buffer plstore))
-           (debug)
            (setq plstore (plstore-open oauth2-auto-plstore))
            (plstore-put plstore id nil plist))
           (plstore-save plstore)
@@ -193,7 +189,6 @@ Cache data if a miss occurs."
   "Returns a 'oauth2-token structure for USERNAME and PROVIDER."
   ; Check the plstore for the requested username and provider
   (let ((plist (oauth2-auto--plstore-read username provider)))
-
     (if (not (oauth2-auto--plist-needs-refreshing plist))
         ; If expiration time is found and hasn't happened yet
         plist
