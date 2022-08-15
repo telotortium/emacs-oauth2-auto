@@ -161,11 +161,12 @@ from PLIST if non-nil.  The return value is intended to be stored in plstore."
         (prog1 plist
           (plstore-put plstore id nil plist)
           ;; Seems like we occasionally end up with a killed buffer in PLSTORE - reinitialize it in that case.
-          (unless (buffer-live-p (plstore--get-buffer plstore))
-           (setq plstore (plstore-open oauth2-auto-plstore))
-           (plstore-put plstore id nil plist))
-          (plstore-save plstore)
-          (puthash id plist oauth2-auto--plstore-cache))
+          (if (buffer-live-p (plstore--get-buffer plstore))
+              (progn
+                (plstore-save plstore)
+                (puthash id plist oauth2-auto--plstore-cache))
+            (plstore-close plstore)
+            (oauth2-auto--plstore-write username provider plist)))
       (plstore-close plstore))))
 
 (defun oauth2-auto--plstore-read (username provider)
