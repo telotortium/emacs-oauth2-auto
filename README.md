@@ -1,7 +1,8 @@
-#+TITLE: OAuth2-auto
+# OAuth2-auto
 
 Variables to set
-#+begin_src emacs-lisp
+
+```emacs-lisp
 ;;; oauth2-auto-config.el -*- lexical-binding: nil; -*-
 (setq oauth2-auto/microsoft-default-tenant "common"
       oauth2-auto/microsoft-client-id "Access limited to Class-B personnel"
@@ -9,11 +10,11 @@ Variables to set
 
       oauth2-auto/google-client-id "[DATA EXPUNGED]"
       oauth2-auto/google-client-secret "[REDACTED]")
-#+end_src
+```
 
+Example script for fetching the OAuth2 token. Load the packages from `straight.el`'s repositories.
 
-Example script for fetching the OAuth2 token. Load the packages from ~straight.el~'s repositories.
-#+begin_src emacs-lisp
+```emacs-lisp
 ;;; oauth2-token-fetch.el -*- lexical-binding: t; -*-
 
 (let ((username (nth 3 command-line-args))
@@ -43,4 +44,11 @@ Example script for fetching the OAuth2 token. Load the packages from ~straight.e
   ; Authenticate user and print access token
   (princ (oauth2-auto/access-token-sync username (intern provider)))
   (princ "\n"))
-#+end_src
+```
+
+There are notifications that remind you to look at your browser and log in. To
+modify them, edit
+
+```emacs-lisp
+(alert-add-rule :category "oauth2-auto" :style 'notifications)
+```
