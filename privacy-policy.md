@@ -1,7 +1,8 @@
 ## Privacy policy
 
 In short: `emacs-oauth2-auto` only stores the authentication token in your local
-machine, and does not transmit it.
+machine, and does not transmit it. We, the authors of this code, have **no
+access to your data**.
 
 `emacs-oauth2-auto` itself does not access or store any sensitive user data,
 other than the OAuth token required for authentication. In particular, it does
@@ -18,5 +19,5 @@ responsibility.
 
 Copyright (C) 2022 Adrià Garriga Alonso
 
-Licensed under GPLv3+, see the project page
+Licensed under GPLv3 or later, see the project page
 <https://github.com/rhaps0dy/emacs-oauth2-auto>
