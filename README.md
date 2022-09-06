@@ -68,6 +68,20 @@ The following customizable variables let you change the behaviour of `oauth2-aut
   doesn't include by default, who also follow the OAuth2 protocol. This alist
   should follow the format from the value in `oauth2-auto--default-providers`.
 
+## Alerts
+
+When you request an OAuth token from Emacs, it opens a link in your browser
+which asks you to log in to your authentication provider. `oauth2-auto` uses
+[alert](https://github.com/jwiegley/alert/) to make sure the user knows to go to
+their browser and log in.
+
+To modify how these notifications are displayed, edit the `"oauth2-auto"`
+category of alerts. For example,
+
+```emacs-lisp
+(alert-add-rule :category "oauth2-auto" :style 'notifications)
+```
+
 ### Fetching the token for email authentication
 
 If you would like to read your email authenticated with `XOAUTH2`, you need to
@@ -111,11 +125,4 @@ stdout.
   ; Authenticate user and print access token
   (princ (oauth2-auto-access-token-sync username (intern provider)))
   (princ "\n"))
-```
-
-There are notifications that remind you to look at your browser and log in. To
-modify them, edit
-
-```emacs-lisp
-(alert-add-rule :category "oauth2-auto" :style 'notifications)
 ```
