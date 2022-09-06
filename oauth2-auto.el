@@ -3,26 +3,27 @@
 ;; Copyright (C) 2011-2021 Free Software Foundation, Inc
 
 ;; Author: Adrià Garriga-Alonso <adria.garriga@gmail.com>
-;; URL: https://github.com/rhaps0dy/emacs-oauth2-auto
-;; Version: 0.1
-;; Keywords: comm oauth2
+;; Maintainer: Adrià Garriga-Alonso <adria@rdwrs.com>
+;; Version: 0.0.1
+;; Keywords: comm extensions mail news processes
+;; Homepage: https://github.com/rhaps0dy/emacs-oauth2-auto
 ;; Package-Requires: ((emacs "26.1") (aio "1.0") (alert "1.2") (dash "2.19"))
 
-;; This file is part of GNU Emacs.
-
-;; GNU Emacs is free software: you can redistribute it and/or modify
+;; This file is not part of GNU Emacs.
+;;
+;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation, either version 3 of the License, or
 ;; (at your option) any later version.
-
-;; GNU Emacs is distributed in the hope that it will be useful,
+;;
+;; This program is distributed in the hope that it will be useful,
 ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
-
+;;
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
-
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+;;
 ;;; Commentary:
 
 ;; State machine to fetch OAuth 2.0 tokens for various email accounts.
@@ -48,7 +49,8 @@
 ;; Endpoints and client secret/id used for various OAuth2 providers.
 
 (defcustom oauth2-auto-microsoft-default-tenant "common"
-  "Default tenant ID for Microsoft OAuth2."
+  "Default tenant ID for Microsoft OAuth2.
+If using an institutional email, change to the organization ID."
   :group 'oauth2-auto
   :type 'string)
 
@@ -62,18 +64,18 @@
   :group 'oauth2-auto
   :type 'string)
 
-(defcustom oauth2-auto-google-client-id ""
+(defcustom oauth2-auto-google-client-id "739925368137-g1723jt0hrsck33tqnrhhdtr7bfri6gj.apps.googleusercontent.com"
   "Default client ID for Google OAuth2."
   :group 'oauth2-auto
   :type 'string)
 
-(defcustom oauth2-auto-google-client-secret ""
+(defcustom oauth2-auto-google-client-secret "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"
   "Default client secret for Google OAuth2."
   :group 'oauth2-auto
   :type 'string)
 
 (defcustom oauth2-auto-additional-providers-alist '()
-  "Additional OAuth2 providers following `oauth2-auto--default-providers'."
+  "Additional OAuth2 providers following the format of `oauth2-auto--default-providers'."
   :group 'oauth2-auto
   :type 'alist)
 
@@ -85,14 +87,15 @@
     `((google
        (authorize_url . "https://accounts.google.com/o/oauth2/auth")
        (token_url . "https://oauth2.googleapis.com/token")
-       (scope . "https://mail.google.com/ https://www.googleapis.com/auth/calendar.events")
+       (available_scopes . ((email . "https://mail.google.com/")
+                            (calendar . "https://www.googleapis.com/auth/calendar.events")))
        (client_id . ,oauth2-auto-google-client-id)
        (client_secret . ,oauth2-auto-google-client-secret))
       (microsoft
        (authorize_url . ,(concat ms-oauth2-url "authorize"))
        (token_url . ,(concat ms-oauth2-url "token"))
        (tenant . ,oauth2-auto-microsoft-default-tenant)
-       (scope . "offline_access https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/POP.AccessAsUser.All https://outlook.office.com/SMTP.Send")
+       (available_scopes . ((email . "offline_access https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/POP.AccessAsUser.All https://outlook.office.com/SMTP.Send")))
        (client_id . ,oauth2-auto-microsoft-client-id)
        (client_secret . ,oauth2-auto-microsoft-client-secret)))))
 
@@ -104,11 +107,42 @@ This combines the providers specified in `oauth2-auto--default-providers' and
   (append oauth2-auto-additional-providers-alist
           (oauth2-auto--default-providers)))
 
+;; Query the provider alist
+
+(defun oauth2-auto-assoc (key alist)
+  "Get KEY from ALIST. Error if the result is nil."
+  (let ((out (cdr (assoc key alist))))
+    (unless out
+      (error "Could not find key %s in alist %s" key alist))
+    out))
+
+
+(defun oauth2-auto--provider-info (provider)
+  "Get data for PROVIDER from `oauth2-auto-providers-alist'."
+  (let ((provider-info (oauth2-auto-assoc provider (oauth2-auto-providers-alist))))
+    (dolist (key '(client_id client_secret))
+      (when (equal "" (oauth2-auto-assoc key provider-info))
+        (error "oauth2-auto: Provider %s was requested but has no `%s' specified" provider key)))
+    provider-info))
+
+(defun oauth2-auto--provider-scopes (provider scopes)
+  "Return the concatenated SCOPES from PROVIDER.
+Signals error if the SCOPES are not present."
+  (unless scopes
+    (error "SCOPES is nil (empty list)"))
+  (let* ((provider-info (oauth2-auto--provider-info provider))
+         (available-scopes (cdr (assoc 'available_scopes provider-info)))
+         (get-scope (lambda (s) (let ((scope-text (oauth2-auto-assoc s available-scopes)))
+                                  (unless scope-text
+                                    (error "Provider %s does not have scope %s" provider s))
+                                  scope-text))))
+    (mapconcat get-scope scopes " ")))
+
 
 ;; Main data structure
 
-(defun oauth2-auto--make-plist (response plist)
-  "Make the main data structure of the module.
+(defun oauth2-auto--make-token-plist (response plist)
+  "Make the token storage data structure.
 
 This data structure is a plist containing an :access-token, :refresh-token, and
 :expiration.  This function takes RESPONSE from ‘oauth2-auto--request’, and data
@@ -118,11 +152,19 @@ from PLIST if non-nil.  The return value is intended to be stored in plstore."
     (unless refresh-token
       (error "No refresh token in response %s or plist %s"
              (pp-to-string response) (pp-to-string plist)))
-    `(:access-token ,(cdr (assoc 'access_token response))
+    `(:access-token ,(oauth2-auto-assoc 'access_token response)
       :refresh-token ,refresh-token
       :expiration ,(+ (oauth2-auto--now)
-                      (cdr (assoc 'expires_in response))))))
+                      (oauth2-auto-assoc 'expires_in response)))))
 
+(defun oauth2-auto--make-auth-request-alist (username provider scopes)
+  "Struct representing an authentication request.
+
+Authenticate user USERNAME with PROVIDER, and request use of the
+resources in SCOPES."
+    `((username . ,username)
+      (provider . ,provider)
+      (scopes . ,(funcall #'oauth2-auto--provider-scopes provider scopes))))
 
 ;; Checking token expiration
 
@@ -144,18 +186,16 @@ from PLIST if non-nil.  The return value is intended to be stored in plstore."
   :group 'oauth2-auto
   :type 'file)
 
-; TODO remove cache or invalidate it properly when other programs write to disk
-(defvar oauth2-auto--plstore-cache
-  (make-hash-table :test 'equal)
-  "Cache the values written to and read from the plstore.")
+(defun oauth2-auto--compute-id (auth-request)
+  "Unique ID for an AUTH-REQUEST."
+  (url-hexify-string
+   (pp-to-string (list (alist-get 'username auth-request)
+                       (alist-get 'provider auth-request)
+                       (alist-get 'scope auth-request)))))
 
-(defun oauth2-auto--compute-id (username provider)
-  "Unique ID for a USERNAME and PROVIDER."
-  (url-hexify-string (pp-to-string (list username provider))))
-
-(defun oauth2-auto--plstore-write (username provider plist)
-  "Save data PLIST for USERNAME and PROVIDER to the plstore and cache."
-  (let ((id (oauth2-auto--compute-id username provider))
+(defun oauth2-auto--plstore-write (auth-request plist)
+  "Save the response PLIST for an AUTH-REQUEST to the plstore."
+  (let ((id (oauth2-auto--compute-id auth-request))
         (plstore (plstore-open oauth2-auto-plstore)))
     (unwind-protect
         (prog1 plist
@@ -164,85 +204,69 @@ from PLIST if non-nil.  The return value is intended to be stored in plstore."
           (unless (buffer-live-p (plstore--get-buffer plstore))
            (setq plstore (plstore-open oauth2-auto-plstore))
            (plstore-put plstore id nil plist))
-          (plstore-save plstore)
-          (puthash id plist oauth2-auto--plstore-cache))
+          (plstore-save plstore))
       (plstore-close plstore))))
 
-(defun oauth2-auto--plstore-read (username provider)
-  "Read the data for USERNAME and PROVIDER from the cache, else from plstore.
+(defun oauth2-auto--plstore-read (auth-request)
+  "Read data for AUTH-REQUEST from plstore if it exists, else from the plstore.
 Cache data if a miss occurs."
-  (let ((id (oauth2-auto--compute-id username provider)))
-    ; Assume cache is invalidated. FIXME
-    (or nil ;(gethash id oauth2-auto--plstore-cache)
-        (let ((plstore (plstore-open oauth2-auto-plstore)))
-          (unwind-protect
-              (puthash id
-                       (cdr (plstore-get plstore id))
-                       oauth2-auto--plstore-cache)
-            (plstore-close plstore))))))
+  (let ((id (oauth2-auto--compute-id auth-request)))
+    (let ((plstore (plstore-open oauth2-auto-plstore)))
+      (unwind-protect
+          (cdr (plstore-get plstore id))
+        (plstore-close plstore)))))
 
 
 
 ;; Main entry point
 
-(aio-defun oauth2-auto-plist (username provider)
-  "Returns a 'oauth2-token structure for USERNAME and PROVIDER."
-  ; Check the plstore for the requested username and provider
-  (let ((plist (oauth2-auto--plstore-read username provider)))
+(aio-defun oauth2-auto-plist (username provider scopes)
+  "Return a promise for a `oauth2-token' structure for USERNAME and PROVIDER, with access to SCOPES."
+  ; Check the plstore for the requested username, provider and scope
+  (let* ((auth-request (oauth2-auto--make-auth-request-alist username provider scopes))
+        (plist (oauth2-auto--plstore-read auth-request)))
     (if (not (oauth2-auto--plist-needs-refreshing plist))
         ; If expiration time is found and hasn't happened yet
         plist
       ; Otherwise refresh or authenticate the user, and write the result to
       ; plstore.
       (oauth2-auto--plstore-write
-       username provider
+       auth-request
        (aio-await
-        (oauth2-auto-refresh-or-authenticate username provider plist))))))
+        (oauth2-auto-refresh-or-authenticate auth-request plist))))))
 
-(aio-defun oauth2-auto-force-reauth (username provider)
-  "Authenticates USERNAME with PROVIDER again and saves to the plstore."
-  (oauth2-auto--plstore-write
-   username provider
-   (aio-await
-    (oauth2-auto-authenticate username provider))))
+(aio-defun oauth2-auto-force-reauth (username provider scopes)
+  "Authenticate USERNAME with PROVIDER again, requesting SCOPES, and save result to `oauth2-auto-plstore'."
+  (let ((auth-request (oauth2-auto--make-auth-request-alist username provider scopes)))
+    (oauth2-auto--plstore-write
+     auth-request
+     (aio-await
+      (oauth2-auto-authenticate auth-request)))))
 
-
-(defun oauth2-auto-poll-promise (promise)
-  "Synchronously wait for PROMISE, polling every SECONDS seconds."
-  (let ((seconds 3))
-   (while (null (aio-result promise))
-     (sleep-for seconds))
-   (funcall (aio-result promise))))
+;; (defun oauth2-auto-poll-promise (promise &optional seconds)
+;;   "Synchronously wait for PROMISE, polling every SECONDS seconds."
+;;   (let ((seconds-really (or seconds 3)))
+;;    (while (null (aio-result promise))
+;;      (sleep-for seconds-really))
+;;    (funcall (aio-result promise))))
 
 ;;;###autoload
-(defun oauth2-auto-plist-sync (username provider)
-  "Synchronously call ‘oauth2-auto-plist’ and return result.
-For USERNAME and PROVIDER, see."
-  (oauth2-auto-poll-promise (oauth2-auto-plist username provider)))
+(defun oauth2-auto-plist-sync (username provider scopes)
+  "Return a `oauth2-token' structure for USERNAME and PROVIDER, with access to SCOPES."
+  (aio-wait-for (oauth2-auto-plist username provider scopes)))
 
-(aio-defun oauth2-auto-access-token (username provider)
-  "Returns access-token string used to authenticate USERNAME to PROVIDER."
-  (plist-get (aio-await (oauth2-auto-plist username provider))
+(aio-defun oauth2-auto-access-token (username provider scopes)
+  "Return promise for an access-token string used to authenticate USERNAME to PROVIDER, requesting SCOPES."
+  (plist-get (aio-await (oauth2-auto-plist username provider scopes))
              :access-token))
 
 ;;;###autoload
-(defun oauth2-auto-access-token-sync (username provider)
-  "Synchronously call ‘oauth2-auto-access-token’ and return result.
-For USERNAME and PROVIDER, see."
-  (oauth2-auto-poll-promise (oauth2-auto-access-token username provider)))
+(defun oauth2-auto-access-token-sync (username provider scopes)
+  "Return an access-token string used to authenticate USERNAME to PROVIDER, requesting SCOPES."
+  (aio-wait-for (oauth2-auto-access-token username provider scopes)))
 
 
 ;; Making and encoding requests
-
-(defun oauth2-auto--provider-info (provider)
-  "Get data for PROVIDER from `oauth2-auto-providers-alist'."
-  (let ((provider-info (cdr (assoc provider (oauth2-auto-providers-alist)))))
-    (when (not provider-info)
-      (error "oauth2-auto: Unknown provider: %s" provider))
-    (dolist (key '(client_id client_secret))
-        (when (equal "" (cdr (assoc key provider-info)))
-         (error "oauth2-auto: Provider %s was requested but has no `%s' specified" provider key)))
-    provider-info))
 
 (defun oauth2-auto--urlify-request (alist)
   "Make ALIST of (symbol . string) into URL-formatted request."
@@ -456,36 +480,38 @@ Exists because this package is compatible with Emacs 26.1, but
 ;; Control flow to authenticate client to the OAuth2 providers
 
 
-(aio-defun oauth2-auto-refresh-or-authenticate (username provider plist)
+(aio-defun oauth2-auto-refresh-or-authenticate (auth-request plist)
   "Try to refresh, and if refreshing fails, authenticate.
 For USERNAME, PROVIDER, and PLIST see ‘oauth2-auto-refresh’."
-  (let* ((promise (oauth2-auto-refresh username provider plist))
+  (let* ((promise (oauth2-auto-refresh (oauth2-auto-assoc 'provider auth-request) plist))
          (result (aio-await (aio-catch promise))))
     (if (eq (car result) :success)
         ; If succeeded, return the result
         (cdr result)
       ; If failed, authenticate instead
-      (aio-await (oauth2-auto-authenticate username provider)))))
+      (aio-await (oauth2-auto-authenticate auth-request)))))
 
-(aio-defun oauth2-auto-authenticate (username provider)
-  "Authenticates USERNAME using PROVIDER and returns a plist."
-  (let* ((state (oauth2-auto--random-string 8))
+(aio-defun oauth2-auto-authenticate (auth-request)
+  "Authenticate AUTH-REQUEST and return a plist from `oauth2-auto--make-token-plist'."
+  (let* ((provider (oauth2-auto-assoc 'provider auth-request))
+         (state (oauth2-auto--random-string 8))
          (code-verifier (oauth2-auto--random-string 43))
          (binary-code-challenge (secure-hash 'sha256 code-verifier nil nil t))
          (response (aio-await
                     (oauth2-auto--browser-request
                      provider 'authorize_url
-                     '(client_id tenant scope)
-                     `((login_hint . ,username)
+                     '(client_id tenant)
+                     `((login_hint . ,(oauth2-auto-assoc 'username auth-request))
+                       (scope . ,(oauth2-auto-assoc 'scopes auth-request))
                        (response_type . "code")
                        (response_mode . "query") ;; microsoft-only
                        (access_type . "offline") ;; google-only
                        (state . ,state)
                        (code_challenge . ,(oauth2-auto--base64url-encode-string binary-code-challenge t))
                        (code_challenge_method . "S256")))))
-         (response-state (cdr (assoc 'state response)))
-         (redirect-uri (cdr (assoc 'redirect_uri response)))
-         (code (cdr (assoc 'code response))))
+         (response-state (oauth2-auto-assoc 'state response))
+         (redirect-uri (oauth2-auto-assoc 'redirect_uri response))
+         (code (oauth2-auto-assoc 'code response)))
 
     ; Verify that the return state matches.
     ; https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow#successful-response
@@ -494,7 +520,7 @@ For USERNAME, PROVIDER, and PLIST see ‘oauth2-auto-refresh’."
        "State sent and returned do not match - security risk: state=%s response_state=%s"
        state response-state))
 
-    (oauth2-auto--make-plist
+    (oauth2-auto--make-token-plist
      (aio-await
       (oauth2-auto--request
        provider 'token_url
@@ -505,15 +531,15 @@ For USERNAME, PROVIDER, and PLIST see ‘oauth2-auto-refresh’."
          (code_verifier . ,code-verifier))))
      nil)))
 
-(aio-defun oauth2-auto-refresh (_username provider plist)
-  "Refresh access of USERNAME using PROVIDER using the refresh-token in PLIST.
+(aio-defun oauth2-auto-refresh (provider plist)
+  "Refresh access on PROVIDER using the refresh-token in PLIST.
 Return the refreshed plist."
   (let ((refresh-token (plist-get plist :refresh-token)))
     (unless refresh-token
       (error "Refresh token is nil in plist=%s" (pp-to-string plist)))
 
     ; Refresh an oauth2-token
-    (oauth2-auto--make-plist
+    (oauth2-auto--make-token-plist
      (aio-await (oauth2-auto--request
                  provider 'token_url
                  '(client_id tenant client_secret)

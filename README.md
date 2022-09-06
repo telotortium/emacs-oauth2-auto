@@ -1,15 +1,12 @@
 # OAuth2-auto
 
-Variables to set
+Variables to set with your own app data if you want to authenticate on Microsoft servers
 
 ```emacs-lisp
 ;;; oauth2-auto-config.el -*- lexical-binding: nil; -*-
 (setq oauth2-auto-microsoft-default-tenant "common"
       oauth2-auto-microsoft-client-id "Access limited to Class-B personnel"
-      oauth2-auto-microsoft-client-secret "########"
-
-      oauth2-auto-google-client-id "[DATA EXPUNGED]"
-      oauth2-auto-google-client-secret "[REDACTED]")
+      oauth2-auto-microsoft-client-secret "########")
 ```
 
 Example script for fetching the OAuth2 token. Load the packages from `straight.el`'s repositories.
@@ -19,13 +16,14 @@ Example script for fetching the OAuth2 token. Load the packages from `straight.e
 
 (let ((username (nth 3 command-line-args))
       (provider (nth 4 command-line-args))
+      (scopes (cdr (cddddr command-line-args)))
       (repo-dir
        (concat straight-base-dir ".local/straight/repos/")))
 
   ; very basic parsing of command line arguments
   (unless (and username provider)
     (princ "Could not find username or provider.\n")
-    (princ "emacs --script fetch-oauth-token.el USERNAME PROVIDER\n")
+    (princ "emacs --script fetch-oauth-token.el USERNAME PROVIDER SCOPE1 [SCOPE2 ...]\n")
     (kill-emacs 1))
 
   ; Load and configure the GPG encryption by `plstore'
@@ -42,7 +40,7 @@ Example script for fetching the OAuth2 token. Load the packages from `straight.e
   (load-file "/path/to/oauth2-auto-config.el")
 
   ; Authenticate user and print access token
-  (princ (oauth2-auto-access-token-sync username (intern provider)))
+  (princ (oauth2-auto-access-token-sync username (intern provider) (mapcar #'intern scopes)))
   (princ "\n"))
 ```
 
