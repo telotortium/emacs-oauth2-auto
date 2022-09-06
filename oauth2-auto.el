@@ -64,12 +64,12 @@ If using an institutional email, change to the organization ID."
   :group 'oauth2-auto
   :type 'string)
 
-(defcustom oauth2-auto-google-client-id ""
+(defcustom oauth2-auto-google-client-id "739925368137-g1723jt0hrsck33tqnrhhdtr7bfri6gj.apps.googleusercontent.com"
   "Default client ID for Google OAuth2."
   :group 'oauth2-auto
   :type 'string)
 
-(defcustom oauth2-auto-google-client-secret ""
+(defcustom oauth2-auto-google-client-secret "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"
   "Default client secret for Google OAuth2."
   :group 'oauth2-auto
   :type 'string)
@@ -110,7 +110,7 @@ This combines the providers specified in `oauth2-auto--default-providers' and
 ;; Query the provider alist
 
 (defun oauth2-auto-assoc (key alist)
-  "Gets KEY from ALIST, and if not present errors."
+  "Get KEY from ALIST. Error if the result is nil."
   (let ((out (cdr (assoc key alist))))
     (unless out
       (error "Could not find key %s in alist %s" key alist))
