@@ -126,3 +126,9 @@ stdout.
   (princ (oauth2-auto-access-token-sync username (intern provider)))
   (princ "\n"))
 ```
+
+## Privacy policy
+
+In short, Emacs `oauth2-auto` runs in your local machine and does not send away
+any of your data. We developers have no way to access it. For more explanation
+see our [Privacy Policy](./privacy-policy).
