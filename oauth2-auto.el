@@ -299,8 +299,13 @@ Also send data in EXTRA-ALIST."
          (url-request-data data)
          (url-request-extra-headers
           '(("Content-Type" . "application/x-www-form-urlencoded")))
-         ;; TODO: using `aio-url-retrieve' sometimes results in a hung connection
-         (response-buffer (cdr (aio-await (aio-url-retrieve url))))
+         ;; TODO: using `aio-url-retrieve' sometimes results in a hung
+         ;; connection, so we fall back to ‘url-retrieve-synchronously’ instead.
+         ;; This method shouldn’t be called very often, only when obtaining the
+         ;; initial access token and when refreshing tokens, which only happens
+         ;; every hour or so. Therefore I think this is an acceptable workaround
+         ;; for now.
+         (response-buffer (aio-await (url-retrieve-synchronously url)))
          (response (with-current-buffer response-buffer
                      (prog1 (oauth2-auto--request-access-parse)
                        (kill-buffer (current-buffer))))))
