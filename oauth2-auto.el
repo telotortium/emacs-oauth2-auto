@@ -286,29 +286,29 @@ See https://github.com/emacsmirror/oauth2."
 PROVIDER uses the url and data specified under URL-KEY and
 DATA-KEYS in the provider info (see `oauth2-auto-providers-alist').
 Also send data in EXTRA-ALIST."
-  (let* (; Craft the request first
+  (let* (
+         ;; Craft the request first
          (provider-info (oauth2-auto--provider-info provider))
          (url (cdr (assoc url-key provider-info)))
          (data-alist (oauth2-auto--craft-request-alist
                       provider-info data-keys extra-alist))
-         (data (oauth2-auto--urlify-request data-alist)))
-    ; Parameters for `url-retrieve' inside `aio-url-retrieve'
-    ; Cannot use `let' because they are dynamically bound variables
-    (setq url-registered-auth-schemes nil
-          url-request-method "POST"
-          url-request-data data
-          url-request-extra-headers
+         (data (oauth2-auto--urlify-request data-alist))
+         ;; Parameters for `url-retrieve' inside `aio-url-retrieve'
+         (url-registered-auth-schemes nil)
+         (url-request-method "POST")
+         (url-request-data data)
+         (url-request-extra-headers
           '(("Content-Type" . "application/x-www-form-urlencoded")))
-    ; TODO: using `aio-url-retrieve' sometimes results in a hung connection
-    (let* ((response-buffer (aio-await (url-retrieve-synchronously url)))
-           (response (with-current-buffer response-buffer
-                       (prog1 (oauth2-auto--request-access-parse)
-                         (kill-buffer (current-buffer))))))
+         ;; TODO: using `aio-url-retrieve' sometimes results in a hung connection
+         (response-buffer (cdr (aio-await (aio-url-retrieve url))))
+         (response (with-current-buffer response-buffer
+                     (prog1 (oauth2-auto--request-access-parse)
+                       (kill-buffer (current-buffer))))))
       (cond
        ((assoc 'error response)
         (error "OAuth error.  Request: %s.  Response: %s"
                (pp-to-string data-alist) (pp-to-string response)))
-       (t response)))))
+       (t response))))
 
 
 ;; Barebones HTTP server to receive the tokens
