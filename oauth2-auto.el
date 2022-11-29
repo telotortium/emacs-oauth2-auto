@@ -180,7 +180,9 @@ fix https://github.com/rhaps0dy/emacs-oauth2-auto/issues/6."
   (when
       (and
        (stringp (buffer-file-name))
-       (not (file-equal-p oauth2-auto-plstore (buffer-file-name)))
+       (not (file-equal-p
+             (file-truename oauth2-auto-plstore)
+             (file-truename (buffer-file-name))))
        (equal ";;; secret entries\n" (nth 0 args))
        (backtrace-frames 'oauth2-auto--plstore-write))
     (error "BUG: Attempted to write ‘oauth2-auto’ keys to %s, not ‘oauth2-auto-plstore’ (%s).  Please report to https://github.com/rhaps0dy/emacs-oauth2-auto/issues/6."
