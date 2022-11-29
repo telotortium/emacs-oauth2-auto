@@ -159,14 +159,32 @@ from PLIST if non-nil.  The return value is intended to be stored in plstore."
         (plstore (plstore-open oauth2-auto-plstore)))
     (unwind-protect
         (prog1 plist
+          (advice-add #'insert :before #'oauth2-auto--insert-break-on-secret-entries)
           (plstore-put plstore id nil plist)
           ;; Seems like we occasionally end up with a killed buffer in PLSTORE - reinitialize it in that case.
-          (unless (buffer-live-p (plstore--get-buffer plstore))
-           (setq plstore (plstore-open oauth2-auto-plstore))
-           (plstore-put plstore id nil plist))
-          (plstore-save plstore)
-          (puthash id plist oauth2-auto--plstore-cache))
-      (plstore-close plstore))))
+          (if (buffer-live-p (plstore--get-buffer plstore))
+              (progn
+                (plstore-save plstore)
+                (puthash id plist oauth2-auto--plstore-cache))
+            (plstore-close plstore)
+            (oauth2-auto--plstore-write username provider plist)))
+      (plstore-close plstore)
+      (advice-remove #'insert #'oauth2-auto--insert-break-on-secret-entries))))
+
+(defun oauth2-auto--insert-break-on-secret-entries (&rest args)
+  "Break if trying to insert secret entries outside of plstore buffer.
+ARGS are those passed to ‘insert’.
+
+This function is added as before advice to ‘insert’ to attempt to reproduce and
+fix https://github.com/rhaps0dy/emacs-oauth2-auto/issues/6."
+  (when
+      (and
+       (stringp (buffer-file-name))
+       (not (file-equal-p oauth2-auto-plstore (buffer-file-name)))
+       (equal ";;; secret entries\n" (nth 0 args))
+       (backtrace-frames 'oauth2-auto--plstore-write))
+    (error "BUG: Attempted to write ‘oauth2-auto’ keys to %s, not ‘oauth2-auto-plstore’ (%s).  Please report to https://github.com/rhaps0dy/emacs-oauth2-auto/issues/6."
+           (buffer-file-name) oauth2-auto-plstore)))
 
 (defun oauth2-auto--plstore-read (username provider)
   "Read the data for USERNAME and PROVIDER from the cache, else from plstore.
