@@ -474,7 +474,7 @@ This produces the URL variant of base 64 encoding defined in RFC 4648.
 
 Exists because this package is compatible with Emacs 26.1, but
 ‘base64url-encode-string’ was only added in Emacs 27.1."
-  (if (fboundp 'base64url-encode-string)
+  (if (fboundp #'base64url-encode-string)
       ;; Use funcall to silence flycheck.
       (funcall #'base64url-encode-string string no-pad)
     (let* ((enc (base64-encode-string string t))
