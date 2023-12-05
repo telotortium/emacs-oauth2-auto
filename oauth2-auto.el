@@ -1,6 +1,6 @@
 ;;; oauth2-auto.el --- Automatically refreshing OAuth 2.0 tokens -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2011-2021 Free Software Foundation, Inc
+;; Copyright (C) 2022-2023 Adrià Garriga-Alonso, Robert Irelan
 
 ;; Author: Adrià Garriga-Alonso <adria.garriga@gmail.com>
 ;; URL: https://github.com/rhaps0dy/emacs-oauth2-auto
@@ -8,20 +8,18 @@
 ;; Keywords: comm oauth2
 ;; Package-Requires: ((emacs "26.1") (aio "1.0") (alert "1.2") (dash "2.19"))
 
-;; This file is part of GNU Emacs.
-
-;; GNU Emacs is free software: you can redistribute it and/or modify
+;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation, either version 3 of the License, or
 ;; (at your option) any later version.
 
-;; GNU Emacs is distributed in the hope that it will be useful,
+;; This program is distributed in the hope that it will be useful,
 ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
