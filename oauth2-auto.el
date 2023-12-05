@@ -1,6 +1,6 @@
 ;;; oauth2-auto.el --- Automatically refreshing OAuth 2.0 tokens -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2011-2021 Adrià Garriga-Alonso, Robert Irelan
+;; Copyright (C) 2022-2023 Adrià Garriga-Alonso, Robert Irelan
 
 ;; Author: Adrià Garriga-Alonso <adria.garriga@gmail.com>
 ;; URL: https://github.com/rhaps0dy/emacs-oauth2-auto
