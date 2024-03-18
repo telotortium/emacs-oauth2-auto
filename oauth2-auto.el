@@ -183,7 +183,7 @@ fix https://github.com/rhaps0dy/emacs-oauth2-auto/issues/6."
              (file-truename (buffer-file-name))))
        (equal ";;; secret entries\n" (nth 0 args))
        (backtrace-frames 'oauth2-auto--plstore-write))
-    (error "BUG: Attempted to write ‘oauth2-auto’ keys to %s, not ‘oauth2-auto-plstore’ (%s).  Please report to https://github.com/rhaps0dy/emacs-oauth2-auto/issues/6.%s"
+    (error "BUG: Attempted to write ‘oauth2-auto’ keys to %s, not ‘oauth2-auto-plstore’ (%s).  Please report to https://github.com/telotortium/emacs-oauth2-auto/issues/6.%s"
            (buffer-file-name) oauth2-auto-plstore
            (if (and (require 'backtrace nil t)
                     (fboundp 'backtrace-print-to-string))
