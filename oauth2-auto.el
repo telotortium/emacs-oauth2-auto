@@ -210,7 +210,7 @@ Cache data if a miss occurs."
 ;; Main entry point
 
 (aio-defun oauth2-auto-plist (username provider)
-  "Returns a 'oauth2-token structure for USERNAME and PROVIDER."
+  "Returns an \\='oauth2-token structure for USERNAME and PROVIDER."
   ; Check the plstore for the requested username and provider
   (let ((plist (oauth2-auto--plstore-read username provider)))
     (if (not (oauth2-auto--plist-needs-refreshing plist))
