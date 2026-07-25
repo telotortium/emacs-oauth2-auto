@@ -1,1 +1,3 @@
 .cask
+*.elc
+build.log

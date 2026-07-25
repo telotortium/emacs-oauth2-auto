@@ -86,6 +86,14 @@ category of alerts. For example,
 (alert-add-rule :category "oauth2-auto" :style 'notifications)
 ```
 
+## Development
+
+Run the byte-compilation, Checkdoc, and ERT test suite with:
+
+```sh
+make test
+```
+
 ### Fetching the token for email authentication
 
 If you would like to read your email authenticated with `XOAUTH2`, you need to
