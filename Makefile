@@ -31,14 +31,10 @@ compile: $(SRC) $(TEST) elpa
 test: test-checkdoc test-unit
 
 test-checkdoc: $(SRC) elpa compile
-	FILES="$(SRC)" $(CASK) eval '\
-	(let* ((files (split-string (getenv "FILES") " "))) \
-	  (dolist (file files) \
-	    (let ((pkg (intern-soft (file-name-base file)))) \
-	      (require pkg) \
-	      (checkdoc-file file))) \
-	  (when (get-buffer "*Warnings*") \
-	    (kill-emacs 1)))'
+	FILES="$(SRC)" $(CASK) emacs --batch \
+		-L $(THIS_MAKEFILE_DIR) \
+		-l $(THIS_MAKEFILE_DIR)/$(TEST) \
+		-f oauth2-auto-test-checkdoc
 
 test-unit: $(SRC) $(TEST) elpa compile
 	$(CASK) emacs --batch \

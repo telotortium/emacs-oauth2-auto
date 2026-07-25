@@ -10,8 +10,19 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'checkdoc)
 (require 'ert)
 (require 'oauth2-auto)
+
+(defun oauth2-auto-test-checkdoc ()
+  "Run Checkdoc for the files named by the FILES environment variable."
+  (let ((warnings-buffer (get-buffer "*Warnings*")))
+    (when warnings-buffer
+      (kill-buffer warnings-buffer)))
+  (dolist (file (split-string (or (getenv "FILES") "") " " t))
+    (checkdoc-file file))
+  (when (get-buffer "*Warnings*")
+    (kill-emacs 1)))
 
 (defmacro oauth2-auto-test--with-temp-directory (directory &rest body)
   "Bind DIRECTORY to a temporary directory while evaluating BODY."
