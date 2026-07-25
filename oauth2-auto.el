@@ -152,6 +152,15 @@ from PLIST if non-nil.  The return value is intended to be stored in plstore."
   (make-hash-table :test 'equal)
   "Cache the values written to and read from the plstore.")
 
+(defun oauth2-auto--same-file-p (file-a file-b)
+  "Return non-nil if FILE-A and FILE-B refer to the same file.
+Unlike `file-equal-p', this also recognizes identical canonical
+paths when the file does not exist yet."
+  (let ((truename-a (file-truename file-a))
+        (truename-b (file-truename file-b)))
+    (or (equal truename-a truename-b)
+        (file-equal-p truename-a truename-b))))
+
 (defun oauth2-auto--compute-id (username provider)
   "Unique ID for a USERNAME and PROVIDER."
   (url-hexify-string (pp-to-string (list username provider))))
@@ -183,9 +192,9 @@ fix https://github.com/rhaps0dy/emacs-oauth2-auto/issues/6."
   (when
       (and
        (stringp (buffer-file-name))
-       (not (file-equal-p
-             (file-truename oauth2-auto-plstore)
-             (file-truename (buffer-file-name))))
+       (not (oauth2-auto--same-file-p
+             oauth2-auto-plstore
+             (buffer-file-name)))
        (equal ";;; secret entries\n" (nth 0 args))
        (backtrace-frames 'oauth2-auto--plstore-write))
     (error "BUG: Attempted to write ‘oauth2-auto’ keys to %s, not ‘oauth2-auto-plstore’ (%s).  Please report to https://github.com/rhaps0dy/emacs-oauth2-auto/issues/6.%s"
@@ -457,11 +466,12 @@ If QUIET is non-nil, suppress alerts."
       ; Always kill server-proc
       (delete-process server-proc))))
 
-(aio-defun oauth2-auto--browser-request-manually (provider url-key data-keys extra-alist &optional quiet)
+(aio-defun oauth2-auto--browser-request-manually
+    (provider url-key data-keys extra-alist &optional quiet)
            "Open browser for the OAuth2 PROVIDER.
-Instead of opening browser, display the authorization URL and wait for user to input the code.
-Browser URL is constructed from url and parameters given by taking URL-KEY and DATA-KEYS
-from the data of the PROVIDER, and adding EXTRA-ALIST.
+Instead of opening a browser, display the authorization URL and
+wait for the user to input the code.  The browser URL is constructed
+from URL-KEY and DATA-KEYS in the PROVIDER data, plus EXTRA-ALIST.
 
 If QUIET is non-nil, suppress alerts."
            (let* ((redirect-uri "http://localhost:8080")
@@ -476,8 +486,12 @@ If QUIET is non-nil, suppress alerts."
 
              ;; Instead of opening browser, show URL and wait for code
              (unless quiet
-               (alert (format "Please visit this URL to authorize:\n%s\n\nAfter authorization, copy the 'code' parameter from the redirect URL and paste it below:"
-                              auth-url)
+               (alert (format
+                       (concat
+                        "Please visit this URL to authorize:\n%s\n\n"
+                        "After authorization, copy the 'code' parameter from "
+                        "the redirect URL and paste it below:")
+                       auth-url)
                       :title "Emacs OAuth2 login"
                       :category 'oauth2-auto))
 
