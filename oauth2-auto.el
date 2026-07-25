@@ -276,10 +276,11 @@ For USERNAME and PROVIDER, see."
   "Get data for PROVIDER from `oauth2-auto-providers-alist'."
   (let ((provider-info (cdr (assoc provider (oauth2-auto-providers-alist)))))
     (when (not provider-info)
-      (error "oauth2-auto: Unknown provider: %s" provider))
+      (error "Unknown OAuth2 provider: %s" provider))
     (dolist (key '(client_id client_secret))
         (when (equal "" (cdr (assoc key provider-info)))
-         (error "oauth2-auto: Provider %s was requested but has no `%s' specified" provider key)))
+         (error "OAuth2 provider %s was requested but has no `%s' specified"
+                provider key)))
     provider-info))
 
 (defun oauth2-auto--urlify-request (alist)
